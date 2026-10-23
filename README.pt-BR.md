@@ -2,7 +2,7 @@
 
 # 🎯 yolo-opencv-detection
 
-Detecção de objetos em **imagem, vídeo e webcam** com YOLOv3 pré-treinado no COCO (80 classes), rodando direto no módulo `dnn` do OpenCV: sem PyTorch, sem GPU, só CPU.
+Detecção de objetos em **imagem, vídeo e webcam** com YOLOv3 pré-treinado no COCO (80 classes), rodando direto no módulo `dnn` do OpenCV: sem PyTorch, sem CUDA. Roda na CPU, ou na GPU via OpenCL quando disponível.
 
 > Projeto de estudo: o mesmo pipeline implementado duas vezes, num notebook didático (imagem) e num script de tempo real (vídeo/webcam).
 
