@@ -1,155 +1,157 @@
+🇺🇸 English | [🇧🇷 Português](README.pt-BR.md)
+
 # 🎯 yolo-opencv-detection
 
-Detecção de objetos em **imagem, vídeo e webcam** com YOLOv3 pré-treinado no COCO (80 classes), rodando direto no módulo `dnn` do OpenCV: sem PyTorch, sem GPU, só CPU.
+Object detection on **images, video and webcam** with YOLOv3 pre-trained on COCO (80 classes), running directly on OpenCV's `dnn` module: no PyTorch, no GPU, CPU only.
 
-> Projeto de estudo: o mesmo pipeline implementado duas vezes, num notebook didático (imagem) e num script de tempo real (vídeo/webcam).
+> Study project: the same pipeline implemented twice, as a step-by-step notebook (image) and as a real-time script (video/webcam). Code comments are in Portuguese.
 
-<p align="center"><img src="assets/demo.gif" alt="Detecção rodando no vídeo de exemplo" width="480"></p>
+<p align="center"><img src="assets/demo.gif" alt="Detection running on the sample video" width="480"></p>
 
-## Visão geral
+## Overview
 
-| Arquivo | Função | Entrada | Como rodar |
+| File | Purpose | Input | How to run |
 |---|---|---|---|
-| `yolo_detect_image.ipynb` | Pipeline passo a passo, uma etapa por célula | imagem | Jupyter / VS Code |
-| `yolo_detect_video.py` | Detecção em tempo real com FPS na tela | vídeo ou webcam | `python yolo_detect_video.py` |
-| `download_models.py` | Baixa os pesos do YOLOv3 | — | `python download_models.py` |
+| `yolo_detect_image.ipynb` | Step-by-step pipeline, one stage per cell | image | Jupyter / VS Code |
+| `yolo_detect_video.py` | Real-time detection with on-screen FPS | video or webcam | `python yolo_detect_video.py` |
+| `download_models.py` | Downloads the YOLOv3 weights | — | `python download_models.py` |
 
-| Modelo | mAP (COCO) | FLOPS | Quando usar |
+| Model | mAP (COCO) | FLOPS | When to use |
 |---|---|---|---|
-| `yolov3-tiny` | 33.1 | 5.56 Bn | tempo real em CPU |
-| `yolov3` (416) | 55.3 | 65.86 Bn | quando a precisão importa mais que a velocidade |
+| `yolov3-tiny` | 33.1 | 5.56 Bn | real time on CPU |
+| `yolov3` (416) | 55.3 | 65.86 Bn | when accuracy matters more than speed |
 
-## Estrutura do repositório
+## Repository layout
 
 ```
 yolo-opencv-detection/
-├── yolo_detect_image.ipynb   # imagem, passo a passo
-├── yolo_detect_video.py      # vídeo / webcam
-├── download_models.py        # baixa os .weights
-├── make_demo_gif.py          # gera o assets/demo.gif (precisa do Pillow)
+├── yolo_detect_image.ipynb   # image, step by step
+├── yolo_detect_video.py      # video / webcam
+├── download_models.py        # downloads the .weights
+├── make_demo_gif.py          # generates assets/demo.gif (needs Pillow)
 ├── requirements.txt
 ├── assets/
 │   └── demo.gif
 ├── models/
-│   ├── coco.names            # as 80 classes, na ordem do treino
-│   ├── yolov3.cfg            # arquitetura do modelo completo
-│   ├── yolov3-tiny.cfg       # arquitetura do modelo leve
-│   └── *.weights             # pesos (gitignored, ~270 MB no total)
+│   ├── coco.names            # the 80 classes, in training order
+│   ├── yolov3.cfg            # full model architecture
+│   ├── yolov3-tiny.cfg       # lightweight model architecture
+│   └── *.weights             # weights (gitignored, ~270 MB total)
 └── samples/
     ├── yoloTeste.jpg
     └── videoTeste.mp4
 ```
 
-Só o código, as arquiteturas (`.cfg`) e as amostras ficam no git. Os pesos são baixados pelo `download_models.py`, porque o `yolov3.weights` tem 248 MB, acima do limite de 100 MB por arquivo do GitHub.
+Only the code, the architectures (`.cfg`) and the samples are tracked in git. The weights are fetched by `download_models.py`, because `yolov3.weights` is 248 MB, above GitHub's 100 MB per-file limit.
 
-## Arquitetura
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[🖼️ Imagem / frame] -->|"blobFromImage<br/>/255 · 416x416 · BGR→RGB"| B[🧠 YOLOv3]
-    B --> G1[13x13<br/>objetos grandes]
-    B --> G2[26x26<br/>objetos médios]
-    B --> G3[52x52<br/>objetos pequenos]
-    G1 & G2 & G3 -->|"~10 mil caixas<br/>85 valores cada"| C[🔍 Filtro de confiança]
-    C -->|"centro → cantos<br/>fração → pixel"| D[✂️ NMS]
-    D --> E[🎨 Desenho]
+    A[🖼️ Image / frame] -->|"blobFromImage<br/>/255 · 416x416 · BGR→RGB"| B[🧠 YOLOv3]
+    B --> G1[13x13<br/>large objects]
+    B --> G2[26x26<br/>medium objects]
+    B --> G3[52x52<br/>small objects]
+    G1 & G2 & G3 -->|"~10k boxes<br/>85 values each"| C[🔍 Confidence filter]
+    C -->|"center → corners<br/>fraction → pixel"| D[✂️ NMS]
+    D --> E[🎨 Drawing]
 ```
 
-Para o código, cada frame de vídeo é só mais uma imagem: o mesmo pipeline roda em loop. O YOLOv3-tiny não tem a grade de 52x52, e por isso erra mais em objetos pequenos.
+To the code, each video frame is just another image: the same pipeline runs in a loop. YOLOv3-tiny has no 52x52 grid, which is why it struggles more with small objects.
 
-## Por que dois limiares?
+## Why two thresholds?
 
 ```python
 cv2.dnn.NMSBoxes(boxes, confidences, CONF_THRESHOLD, NMS_THRESHOLD)
 ```
 
-| Limiar | Padrão | Mede | Alto demais | Baixo demais |
+| Threshold | Default | Measures | Too high | Too low |
 |---|---|---|---|---|
-| `CONF_THRESHOLD` | 0.5 | uma caixa sozinha: "tem objeto?" | perde objetos reais | aparece lixo |
-| `NMS_THRESHOLD` | 0.4 | duas caixas juntas (IoU): "é duplicata?" | sobram duplicatas | apaga objetos encostados |
+| `CONF_THRESHOLD` | 0.5 | a single box: "is there an object?" | misses real objects | noise shows up |
+| `NMS_THRESHOLD` | 0.4 | two boxes together (IoU): "is it a duplicate?" | duplicates remain | removes objects touching each other |
 
-- ✅ O **mesmo** `CONF_THRESHOLD` vale no filtro e no NMS, então os dois nunca discordam.
-- ✅ O IoU fica **separado** da confiança: dá para baixar a confiança para pegar objetos difíceis sem apagar uma pessoa encostada num carro.
-- ⚠️ Com limiares diferentes no filtro e no NMS, as detecções somem sem erro nenhum. Foi o que aconteceu aqui com o **YOLOv3-tiny**: ele detectava pessoas de costas com só 30–40% de confiança, e elas passavam pelo filtro (0.2) mas eram descartadas pelo NMS (0.5).
-- ⚠️ O `NMSBoxes` ignora a classe. Com muita sobreposição, pode apagar um objeto de outra classe que está encostado.
+- ✅ The **same** `CONF_THRESHOLD` is used in the filter and in NMS, so the two never disagree.
+- ✅ IoU is kept **separate** from confidence: you can lower confidence to catch hard objects without deleting a person standing next to a car.
+- ⚠️ With different thresholds in the filter and in NMS, detections vanish without any error. That is what happened here with **YOLOv3-tiny**: it detected people seen from behind at only 30–40% confidence, so they passed the filter (0.2) but were discarded by NMS (0.5).
+- ⚠️ `NMSBoxes` ignores the class. With heavy overlap, it can remove a touching object of a different class.
 
 ## Quick start
 
 ```bash
-# 1. Clonar
+# 1. Clone
 git clone https://github.com/antonioheitorga/yolo-opencv-detection.git && cd yolo-opencv-detection
 
-# 2. Instalar as dependências (OpenCV, NumPy, matplotlib)
+# 2. Install dependencies (OpenCV, NumPy, matplotlib)
 pip install -r requirements.txt
 
-# 3. Baixar os pesos (os dois modelos, ou só um: python download_models.py yolov3-tiny)
+# 3. Download the weights (both models, or just one: python download_models.py yolov3-tiny)
 python download_models.py
 
-# 4. Rodar no vídeo de exemplo
+# 4. Run on the sample video
 python yolo_detect_video.py
 ```
 
-Para a imagem, abra o `yolo_detect_image.ipynb` e execute as células em ordem.
+For the image, open `yolo_detect_image.ipynb` and run the cells in order.
 
-## Uso
+## Usage
 
 ```bash
 python yolo_detect_video.py
 ```
 
-Para trocar o vídeo, o modelo ou os limiares, edite as constantes no topo do `yolo_detect_video.py`:
+To change the video, the model or the thresholds, edit the constants at the top of `yolo_detect_video.py`:
 
-| Constante | Padrão | O que controla |
+| Constant | Default | Controls |
 |---|---|---|
-| `VIDEO_PATH` | `samples/videoTeste.mp4` | caminho do vídeo; use `0` para a webcam |
-| `MODEL_NAME` | `"yolov3"` | `"yolov3"` ou `"yolov3-tiny"` (mais rápido) |
-| `CONF_THRESHOLD` | 0.5 | confiança mínima |
-| `NMS_THRESHOLD` | 0.4 | IoU máximo entre caixas |
+| `VIDEO_PATH` | `samples/videoTeste.mp4` | video path; use `0` for the webcam |
+| `MODEL_NAME` | `"yolov3"` | `"yolov3"` or `"yolov3-tiny"` (faster) |
+| `CONF_THRESHOLD` | 0.5 | minimum confidence |
+| `NMS_THRESHOLD` | 0.4 | maximum IoU between boxes |
 
-`q` encerra. O FPS e o modelo ativo aparecem no canto do vídeo.
+Press `q` to quit. The FPS and the active model are shown in the corner of the video.
 
-### 🎞️ Gerar um GIF do seu teste
+### 🎞️ Make a GIF of your own test
 
-Testou com o seu próprio vídeo e quer guardar o resultado? O `make_demo_gif.py` gera um GIF com a detecção, do mesmo jeito que o GIF do topo deste README foi feito:
+Tried it on your own video and want to keep the result? `make_demo_gif.py` creates a GIF of the detection, the same way the GIF at the top of this README was made:
 
 ```bash
-pip install pillow                                              # só na primeira vez
-python make_demo_gif.py --source meu_video.mp4 --output meu_teste.gif
-python make_demo_gif.py --source meu_video.mp4 --width 480 --step 3
+pip install pillow                                              # first time only
+python make_demo_gif.py --source my_video.mp4 --output my_test.gif
+python make_demo_gif.py --source my_video.mp4 --width 480 --step 3
 ```
 
-O GIF usa o mesmo modelo e os mesmos limiares definidos no `yolo_detect_video.py`.
+The GIF uses the same model and thresholds defined in `yolo_detect_video.py`.
 
-| Parâmetro | Padrão | O que controla |
+| Option | Default | Controls |
 |---|---|---|
-| `--source` | `samples/videoTeste.mp4` | vídeo de entrada (arquivo, não webcam) |
-| `--output` | `assets/demo.gif` | onde salvar o GIF |
-| `--width` | 640 | largura do GIF em pixels |
-| `--step` | 2 | usa 1 a cada N frames; aumente para um GIF menor |
+| `--source` | `samples/videoTeste.mp4` | input video (file, not webcam) |
+| `--output` | `assets/demo.gif` | where to save the GIF |
+| `--width` | 640 | GIF width in pixels |
+| `--step` | 2 | keeps 1 of every N frames; increase for a smaller GIF |
 
-> 💡 Sem `--output`, o GIF substitui o `assets/demo.gif` do README. GIFs ficam pesados rápido: para vídeos longos, use `--width 480` ou `--step 3`.
+> 💡 Without `--output`, the GIF replaces this README's `assets/demo.gif`. GIFs get heavy fast: for long videos, use `--width 480` or `--step 3`.
 
-## Habilidades desenvolvidas
+## Skills developed
 
-Algumas das habilidades desenvolvidas durante os treinos:
+Some of the skills developed during training:
 
-🧩 **Montar o pipeline completo de detecção, do pixel à caixa desenhada:**
+🧩 **Building the complete detection pipeline, from pixels to drawn boxes:**
 
-| Etapa | O que acontece |
+| Stage | What happens |
 |---|---|
-| 🖼️ Pré-processamento | a imagem vira um blob: pixels normalizados, 416x416, BGR → RGB |
-| 🧠 Inferência | a rede devolve milhares de caixas candidatas |
-| 🔍 Filtragem | só ficam as caixas com confiança acima do limiar |
-| ✂️ NMS | as caixas duplicadas do mesmo objeto são removidas |
-| 🎨 Desenho | caixa, classe e confiança aparecem na imagem |
+| 🖼️ Preprocessing | the image becomes a blob: normalized pixels, 416x416, BGR → RGB |
+| 🧠 Inference | the network returns thousands of candidate boxes |
+| 🔍 Filtering | only boxes with confidence above the threshold are kept |
+| ✂️ NMS | duplicate boxes for the same object are removed |
+| 🎨 Drawing | box, class and confidence are drawn on the image |
 
-## Erros encontrados no caminho
+## Issues found along the way
 
-| Sintoma | Causa | Solução |
+| Symptom | Cause | Fix |
 |---|---|---|
-| **(YOLOv3-tiny)** Pessoas de costas sumiam depois do NMS | o tiny, por ser a versão leve, detectava essas pessoas com só 30–40% de confiança; elas passavam pelo filtro (0.2), mas o NMS recebia 0.5 e as descartava | usar o mesmo `CONF_THRESHOLD` nos dois e, quando a precisão importa, trocar para o `yolov3` completo |
-| O mesmo objeto com várias caixas | células vizinhas e grades diferentes detectam o mesmo objeto | NMS |
+| **(YOLOv3-tiny)** People seen from behind disappeared after NMS | tiny, being the lightweight version, detected them at only 30–40% confidence; they passed the filter (0.2), but NMS received 0.5 and discarded them | use the same `CONF_THRESHOLD` in both and, when accuracy matters, switch to the full `yolov3` |
+| The same object with several boxes | neighboring cells and different grids detect the same object | NMS |
 
-## Créditos
+## Credits
 
-Baseado nos exemplos do curso [Computer Vision: YOLO Custom Object Detection with Colab GPU](https://www.coursera.org/learn/packt-computer-vision-yolo-custom-object-detection-with-colab-gpu-ixaf4) (Packt / Coursera), com modificações próprias. Pesos e arquitetura do YOLOv3 por [Joseph Redmon](https://pjreddie.com/darknet/yolo/). Desenvolvido com auxílio do Claude (Anthropic) para tirar dúvidas, montar esse documento e revisar a implementação.
+Based on the examples from the course [Computer Vision: YOLO Custom Object Detection with Colab GPU](https://www.coursera.org/learn/packt-computer-vision-yolo-custom-object-detection-with-colab-gpu-ixaf4) (Packt / Coursera), with my own modifications. YOLOv3 weights and architecture by [Joseph Redmon](https://pjreddie.com/darknet/yolo/). Developed with help from Claude (Anthropic) for answering questions, writing this document and reviewing the implementation.
