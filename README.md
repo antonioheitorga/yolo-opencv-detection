@@ -77,7 +77,7 @@ cv2.dnn.NMSBoxes(boxes, confidences, CONF_THRESHOLD, NMS_THRESHOLD)
 
 ```bash
 # 1. Clonar
-git clone https://github.com/<seu-usuario>/yolo-opencv-detection.git && cd yolo-opencv-detection
+git clone https://github.com/antonioheitorga/yolo-opencv-detection.git && cd yolo-opencv-detection
 
 # 2. Instalar as dependências (OpenCV, NumPy, matplotlib)
 pip install -r requirements.txt
