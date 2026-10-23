@@ -1,0 +1,18 @@
+# Pesos do modelo (grandes demais para o GitHub, baixe com download_models.py)
+models/*.weights
+models/*.part
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editor / sistema
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
