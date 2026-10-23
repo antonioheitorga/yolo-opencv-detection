@@ -30,6 +30,7 @@ yolo-opencv-detection/
 ├── download_models.py        # downloads the .weights
 ├── make_demo_gif.py          # generates assets/demo.gif (needs Pillow)
 ├── requirements.txt
+├── LICENSE                   # MIT
 ├── assets/
 │   └── demo.gif
 ├── models/
@@ -154,4 +155,8 @@ Some of the skills developed during training:
 
 ## Credits
 
-Based on the examples from the course [Computer Vision: YOLO Custom Object Detection with Colab GPU](https://www.coursera.org/learn/packt-computer-vision-yolo-custom-object-detection-with-colab-gpu-ixaf4) (Packt / Coursera), with my own modifications. YOLOv3 weights and architecture by [Joseph Redmon](https://pjreddie.com/darknet/yolo/). Developed with help from Claude (Anthropic) for answering questions, writing this document and reviewing the implementation.
+Based on the examples from the course [Computer Vision: YOLO Custom Object Detection with Colab GPU](https://www.coursera.org/learn/packt-computer-vision-yolo-custom-object-detection-with-colab-gpu-ixaf4) (Packt / Coursera), with my own modifications. YOLOv3 weights and architecture by [Joseph Redmon](https://pjreddie.com/darknet/yolo/). Sample video from [Pixabay](https://pixabay.com/pt/videos/seul-rua-tráfego-carros-rapidez-21115/); the sample image is a frame from the same video. Developed with help from Claude (Anthropic) for answering questions, writing this document and reviewing the implementation.
+
+## License
+
+[MIT](LICENSE) © Antonio Heitor
